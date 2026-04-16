@@ -66,7 +66,7 @@ async def _process_document(doc: Document, db: AsyncSession) -> None:
         doc.raw_text = raw_text
 
         extractor = get_extractor(doc.template_type)
-        doc.extracted_data = extractor._safe_extract(raw_text)
+        doc.extracted_data = extractor.safe_extract(raw_text)
         doc.status = "completed"
     except Exception as e:
         doc.status = "failed"
@@ -153,7 +153,7 @@ async def batch_upload_documents(
             await db.refresh(doc)
             results.append({"filename": file.filename, "document_id": doc.id, "status": doc.status})
         except Exception as e:
-            results.append({"filename": file.filename, "error": str(e)})
+            results.append({"filename": file.filename, "error": "Processing failed. Please try again."})
 
     return {"results": results, "total": len(results)}
 

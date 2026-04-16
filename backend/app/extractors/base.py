@@ -7,7 +7,7 @@ class BaseExtractor(ABC):
         """Extract structured data from raw text. Returns a dict of key-value pairs."""
         pass
 
-    def _safe_extract(self, text: str) -> dict:
+    def safe_extract(self, text: str) -> dict:
         try:
             return self.extract(text)
         except Exception as e:

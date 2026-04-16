@@ -1,4 +1,5 @@
 from __future__ import annotations
+import os
 import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -32,13 +33,12 @@ async def process_batch(payload: BatchProcessRequest, db: AsyncSession = Depends
             doc.status = "processing"
             await db.flush()
 
-            import os
             file_path = os.path.join(UPLOAD_DIR, doc.filename)
             raw_text = await _extract_text(file_path, doc.file_type)
             doc.raw_text = raw_text
 
             extractor = get_extractor(doc.template_type)
-            doc.extracted_data = extractor._safe_extract(raw_text)
+            doc.extracted_data = extractor.safe_extract(raw_text)
             doc.status = "completed"
             await db.flush()
             items.append(BatchStatusItem(document_id=doc_id, status="completed"))
