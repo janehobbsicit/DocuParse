@@ -89,7 +89,6 @@ async def upload_document(
 
     saved_filename = f"{uuid.uuid4()}{ext}"
     file_path = os.path.join(UPLOAD_DIR, saved_filename)
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
 
     async with aiofiles.open(file_path, "wb") as f:
         await f.write(content)
@@ -132,7 +131,6 @@ async def batch_upload_documents(
 
             saved_filename = f"{uuid.uuid4()}{ext}"
             file_path = os.path.join(UPLOAD_DIR, saved_filename)
-            os.makedirs(UPLOAD_DIR, exist_ok=True)
 
             async with aiofiles.open(file_path, "wb") as f:
                 await f.write(content)
@@ -153,7 +151,7 @@ async def batch_upload_documents(
             await db.refresh(doc)
             results.append({"filename": file.filename, "document_id": doc.id, "status": doc.status})
         except Exception as e:
-            results.append({"filename": file.filename, "error": "Processing failed. Please try again."})
+            results.append({"filename": file.filename, "error": f"Processing failed: {e}"})
 
     return {"results": results, "total": len(results)}
 
