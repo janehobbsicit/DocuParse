@@ -110,23 +110,21 @@ async def upload_document(
     return doc
 
 
-@router.post("/batch-upload", status_code=201)
+@router.post("/batch-upload", response_model=list[DocumentResponse], status_code=201)
 async def batch_upload_documents(
     files: list[UploadFile] = File(...),
     template_type: str = Form(default="generic"),
     db: AsyncSession = Depends(get_db),
 ):
-    results = []
+    docs = []
     for file in files:
         try:
             ext = os.path.splitext(file.filename or "")[1].lower()
             if ext not in ALLOWED_EXTENSIONS:
-                results.append({"filename": file.filename, "error": f"File type '{ext}' not allowed."})
                 continue
 
             content = await file.read()
             if len(content) > MAX_FILE_SIZE:
-                results.append({"filename": file.filename, "error": "File too large."})
                 continue
 
             saved_filename = f"{uuid.uuid4()}{ext}"
@@ -149,17 +147,17 @@ async def batch_upload_documents(
             await _process_document(doc, db)
             await db.commit()
             await db.refresh(doc)
-            results.append({"filename": file.filename, "document_id": doc.id, "status": doc.status})
-        except Exception as e:
-            results.append({"filename": file.filename, "error": f"Processing failed: {e}"})
+            docs.append(doc)
+        except Exception:
+            continue
 
-    return {"results": results, "total": len(results)}
+    return docs
 
 
 @router.get("/", response_model=DocumentListResponse)
 async def list_documents(
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    size: int = Query(20, ge=1, le=100, alias="size"),
     status: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
@@ -173,12 +171,14 @@ async def list_documents(
     total_result = await db.execute(count_query)
     total = total_result.scalar_one()
 
+    pages = max(1, (total + size - 1) // size)
+
     query = query.order_by(Document.created_at.desc())
-    query = query.offset((page - 1) * page_size).limit(page_size)
+    query = query.offset((page - 1) * size).limit(size)
     result = await db.execute(query)
     documents = result.scalars().all()
 
-    return DocumentListResponse(total=total, page=page, page_size=page_size, items=list(documents))
+    return DocumentListResponse(total=total, page=page, size=size, pages=pages, items=list(documents))
 
 
 @router.get("/{doc_id}", response_model=DocumentResponse)
